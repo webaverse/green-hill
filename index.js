@@ -1384,7 +1384,7 @@ export default () => {
                     dummy.position.z = -56.5;
                     info.velocity[i] = (new THREE.Vector3(
                         (Math.random() - 0.5)*5.,
-                        Math.random() *5,
+                        Math.random() *4,
                         (Math.random() - 0.5)*5.)
                     );
                     info.velocity[i].divideScalar(20);
