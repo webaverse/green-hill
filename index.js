@@ -764,7 +764,7 @@ export default () => {
 
   //####################################################### sea ############################################################
   {
-    const geometry = new THREE.PlaneGeometry( 1200, 1200 );
+    const geometry = new THREE.PlaneGeometry( 25, 25 );
     
     const vertexShader = `
       ${THREE.ShaderChunk.common}
@@ -873,33 +873,7 @@ export default () => {
             return td.x * d;
       }
   
-      void seaColor( out vec4 fragColor, in vec2 fragCoord )
-      {
-        float time = iTime * .5+10.0;
-        vec2 uv = vUv*8.;
-       
-    
-        vec2 p = mod(uv*TAU, TAU)-250.0;
-    
-        vec2 i = vec2(p);
-        float c = 1.0;
-        float inten = .005;
-    
-        for (int n = 0; n < MAX_ITER; n++)
-        {
-            float t = time/2. * (1.0 - (3.5 / float(n+1)));
-            i = p + vec2(cos(t - i.x) + sin(t + i.y), sin(t - i.y) + cos(t + i.x));
-            c += 1.0/length(vec2(p.x / (sin(i.x+t)/inten),p.y / (cos(i.y+t)/inten)));
-        }
-        c /= float(MAX_ITER);
-        c = 1.17-pow(c, 1.4);
-        vec3 colour = vec3(pow(abs(c), 8.0));
-        colour = clamp(colour + vec3(0.0546, 0.796, 0.910), 0.0, 1.0);
-        //colour = clamp(colour + vec3(0.0504, 0.208, 0.840), 0.0, 1.0);
-        
-    
-        fragColor = vec4(colour, 1.0);
-      }
+      
       vec3 lightPos = vec3(0.0, 50.0, 0.0);
       const vec3 bgcol = vec3(0x06, 0xb6, 0xf3) / float(0xff);
       const vec3 white = vec3(0xd1, 0xee, 0xf5) / float(0xff);
@@ -908,7 +882,7 @@ export default () => {
       void rippleColor( out vec4 fragColor, in vec2 fragCoord ){
         vec2 uv = vUv* 2.0 - 1.0;
         //vec2 uv = fragCoord / iResolution.xy * 2.0 - 1.0;
-        vec3 ro=vec3(-48.,220.,-9.4);
+        vec3 ro=vec3(0.,8.,-1.5);
         
         float screenSize = (1.0 / (tan(((180. - 100.0) * (3.1415926 / 180.0)) / 2.0)));
         float aspect = iResolution.x / iResolution.y;
@@ -946,8 +920,7 @@ export default () => {
         vec4 test;
         rippleColor(test, vUv * iResolution.xy);
         if(test.r<0.8 && test.g<0.8)
-          seaColor(gl_FragColor, vUv * iResolution.xy);
-          //gl_FragColor=vec4(0.0546, 0.896, 0.910,1.0);
+          gl_FragColor.a=0.;
         else
           gl_FragColor = test;
         ${THREE.ShaderChunk.logdepthbuf_fragment}
@@ -975,8 +948,9 @@ export default () => {
        
     const plane = new THREE.Mesh( geometry, material );
     plane.rotation.x=Math.PI/2;
+
     app.add( plane );
-    
+    plane.position.set(110.7, 0, -56.5);
     app.updateMatrixWorld();
 
     useFrame(({timestamp}) => {
@@ -1263,7 +1237,7 @@ export default () => {
                 gl_FragColor.g-=0.2;
                 
                 gl_FragColor.a=(5.- vPos.y)/5.;
-                gl_FragColor.a*=0.1;
+                gl_FragColor.a*=0.01;
                 // float distanceToCenter = distance(gl_PointCoord, vec2(0.5));
                 // float strength = 0.05 / distanceToCenter - 0.1;
                 // gl_FragColor = vec4(0.260, 0.918, 0.115, strength);
