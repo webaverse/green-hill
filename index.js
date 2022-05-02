@@ -1565,7 +1565,7 @@ export default () => {
                         
                     info.velocity[i].divideScalar(20);
                     positionsAttribute.setXYZ(i,123.7+(Math.random()-0.5)*20, -0.5, -54.5+(Math.random()-0.5)*20);
-                    brokenAttribute.setX(i, Math.random()*0.3+0.3);
+                    brokenAttribute.setX(i, Math.random()*0.3+0.4);
                     opacityAttribute.setX(i, 1);
                     scalesAttribute.setX(i, 0.7);
                     randomAttribute.setX(i, Math.random());
@@ -1819,13 +1819,13 @@ export default () => {
                 matrix.decompose(dummy.position, dummy.quaternion, dummy.scale);
                 
                 if(positionsAttribute.getY(i)<0){
-                    info.velocity[i].x=(Math.random()-0.5)*15;
+                    info.velocity[i].x=(Math.cos(i))*5;
                     info.velocity[i].y=10+(Math.random()-0.5)*10;
-                    info.velocity[i].z=(Math.random()-0.5)*15;
+                    info.velocity[i].z=(Math.sin(i))*5;
                     
                         
                     info.velocity[i].divideScalar(20);
-                    positionsAttribute.setXYZ(i,123.7+(Math.random()-0.5)*20, 0, -54.5+(Math.random()-0.5)*20);
+                    positionsAttribute.setXYZ(i,123.7+(Math.cos(i))*5, 0, -54.5+(Math.sin(i))*5);
                     //brokenAttribute.setX(i, Math.random()*0.3+0.3);
                     opacityAttribute.setX(i, 1);
                     scalesAttribute.setX(i, 0.5 + Math.random()*0.5);
