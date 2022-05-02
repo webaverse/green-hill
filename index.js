@@ -12,38 +12,419 @@ export default () => {
   const localPlayer = useLocalPlayer();
   const physics = usePhysics();
   const textureLoader = new THREE.TextureLoader();
+  const voronoiNoiseTexture = textureLoader.load(`${baseUrl}/textures/voronoiNoise.jpg`);
+  const simpleNoiseTexture = textureLoader.load(`${baseUrl}/textures/simpleNoise4.jpg`);
+  const oneMinusTexture = textureLoader.load(`${baseUrl}/textures/oneMinus2.png`);
+  const maskTexture = textureLoader.load(`${baseUrl}/textures/mask4.png`);
+  const splashTexture1 = textureLoader.load(`${baseUrl}/textures/splash1.png`);
+  
+  const splashTexture2 = textureLoader.load(`${baseUrl}/textures/sphere2.png`)
+  let waterfallmesh = null;
   //####################################################### load greenhiill glb ####################################################
   {
     
     let greenhill;
-    let physicsIds = [];
     (async () => {
-        const u = `${baseUrl}/assets/greenhill.glb`;
+        const u = `${baseUrl}/assets/greenhill4.glb`;
         greenhill = await new Promise((accept, reject) => {
             const {gltfLoader} = useLoaders();
             gltfLoader.load(u, accept, function onprogress() {}, reject);
             
         });
         greenhill.scene.position.y=50;
-        const physicsId = physics.addGeometry(greenhill.scene);
-        physicsIds.push(physicsId);
+        physics.addGeometry(greenhill.scene);
+        
         
         app.add(greenhill.scene);
         app.updateMatrixWorld();
     })();
+    (async () => {
+        const u = `${baseUrl}/assets/waterfall4.glb`;
+        
+        waterfallmesh = await new Promise((accept, reject) => {
+            const {gltfLoader} = useLoaders();
+            gltfLoader.load(u, accept, function onprogress() {}, reject);
+            
+        });
+       
+    })();
     useCleanup(() => {
-      for (const physicsId of physicsIds) {
-        physics.removeGeometry(physicsId);
-      }
+      
+      physics.removeGeometry(greenhill.scene);
+      
     });
     
+
+  }
+  //####################################################### load waterfall glb ####################################################
+  {
+    
+    let waterfall = null;
+    
+        const material= new THREE.ShaderMaterial({
+          uniforms: {
+              uTime: {
+                  value: 0,
+              },
+              opacity: {
+                  value: 0,
+              },
+              avatarPos:{
+                  value: new THREE.Vector3(0,0,0)
+              },
+              iResolution: { value: new THREE.Vector3() },
+              voronoiNoiseTexture:{
+                  value:voronoiNoiseTexture
+              },
+              simpleNoiseTexture:{
+                  value:simpleNoiseTexture
+              },
+              oneMinusTexture:{
+                  value:oneMinusTexture
+              },
+              maskTexture:{
+                  value:maskTexture
+              }
+          },
+          vertexShader: `\
+              
+              ${THREE.ShaderChunk.common}
+              ${THREE.ShaderChunk.logdepthbuf_pars_vertex}
+          
+          
+              uniform float uTime;
+      
+              varying vec2 vUv;
+              varying vec3 vPos;
+              varying vec4 vColor;
+
+              uniform sampler2D voronoiNoiseTexture;
+              uniform sampler2D simpleNoiseTexture;
+              uniform sampler2D oneMinusTexture;
+              uniform sampler2D maskTexture;
+
+          
+              void main() {
+              vUv=uv;
+              vPos=position;
+              vec4 voronoiNoise = texture2D(
+                              voronoiNoiseTexture,
+                              vec2(
+                                  vUv.x,
+                                  mod(1.2*vUv.y-uTime*1.,1.)
+                              )
+              );
+              vec4 simpleNoise = texture2D(
+                              simpleNoiseTexture,
+                              vUv
+              );
+              vec4 oneMinus = texture2D(
+                              oneMinusTexture,
+                              vUv
+              );
+              vec4 mask = texture2D(
+                              maskTexture,
+                              vUv
+              );
+
+              voronoiNoise *= voronoiNoise *voronoiNoise * voronoiNoise* voronoiNoise* voronoiNoise;
+              voronoiNoise += oneMinus *oneMinus *oneMinus *oneMinus * simpleNoise;
+              voronoiNoise *= mask * mask;
+              vColor = voronoiNoise;
+              
+              vPos.y += voronoiNoise.r / (5.);
+              vec4 modelPosition = modelMatrix * vec4(vPos, 1.0);
+              vec4 viewPosition = viewMatrix * modelPosition;
+              vec4 projectionPosition = projectionMatrix * viewPosition;
+      
+              gl_Position = projectionPosition;
+              ${THREE.ShaderChunk.logdepthbuf_vertex}
+              }
+          `,
+          fragmentShader: `\
+              ${THREE.ShaderChunk.logdepthbuf_pars_fragment}
+              varying vec4 vColor;
+              void main() {
+                
+                gl_FragColor= vColor * vec4(0.166, 0.819, 0.920, 1.0) * 2.;
+                
+              ${THREE.ShaderChunk.logdepthbuf_fragment}
+              }
+          `,
+          side: THREE.DoubleSide,
+          transparent: true,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending,
+
+          // clipping: false,
+          // fog: false,
+          // lights: false,
+      });
+      
+    
+    useFrame(({ timestamp }) => {
+      if(waterfallmesh && waterfall === null){
+        waterfall = waterfallmesh.scene.clone();
+        waterfall.position.y=50;
+        waterfall.children[0].material = material;
+        app.add(waterfall);
+      }
+      if(waterfall)
+        waterfall.children[0].material.uniforms.uTime.value = timestamp / 1000;
+        
+      app.updateMatrixWorld();
+    });
+
+  }
+  //####################################################### load waterfall glb ####################################################
+  {
+    
+    let waterfall = null;
+    
+        const material= new THREE.ShaderMaterial({
+          uniforms: {
+              uTime: {
+                  value: 0,
+              },
+              opacity: {
+                  value: 0,
+              },
+              avatarPos:{
+                  value: new THREE.Vector3(0,0,0)
+              },
+              iResolution: { value: new THREE.Vector3() },
+              voronoiNoiseTexture:{
+                  value:voronoiNoiseTexture
+              },
+              simpleNoiseTexture:{
+                  value:simpleNoiseTexture
+              },
+              oneMinusTexture:{
+                  value:oneMinusTexture
+              },
+              maskTexture:{
+                  value:maskTexture
+              }
+          },
+          vertexShader: `\
+              
+              ${THREE.ShaderChunk.common}
+              ${THREE.ShaderChunk.logdepthbuf_pars_vertex}
+          
+          
+              uniform float uTime;
+      
+              varying vec2 vUv;
+              varying vec3 vPos;
+              varying vec4 vColor;
+
+              uniform sampler2D voronoiNoiseTexture;
+              uniform sampler2D simpleNoiseTexture;
+              uniform sampler2D oneMinusTexture;
+              uniform sampler2D maskTexture;
+
+          
+              void main() {
+              vUv=uv;
+              vPos=position;
+              vec4 voronoiNoise = texture2D(
+                              voronoiNoiseTexture,
+                              vec2(
+                                  vUv.x,
+                                  mod(1.2*vUv.y-uTime*1.,1.)
+                              )
+              );
+              vec4 simpleNoise = texture2D(
+                              simpleNoiseTexture,
+                              vUv
+              );
+              vec4 oneMinus = texture2D(
+                              oneMinusTexture,
+                              vUv
+              );
+              vec4 mask = texture2D(
+                              maskTexture,
+                              vUv
+              );
+
+              voronoiNoise *= voronoiNoise *voronoiNoise * voronoiNoise* voronoiNoise* voronoiNoise;
+              voronoiNoise += oneMinus * simpleNoise;
+              voronoiNoise *= mask * mask;
+              
+              
+              vColor = voronoiNoise;
+              
+              vPos.y += voronoiNoise.r / (3.5);
+              vec4 modelPosition = modelMatrix * vec4(vPos, 1.0);
+              vec4 viewPosition = viewMatrix * modelPosition;
+              vec4 projectionPosition = projectionMatrix * viewPosition;
+      
+              gl_Position = projectionPosition;
+              ${THREE.ShaderChunk.logdepthbuf_vertex}
+              }
+          `,
+          fragmentShader: `\
+              ${THREE.ShaderChunk.logdepthbuf_pars_fragment}
+              varying vec4 vColor;
+              void main() {
+                
+                gl_FragColor= vColor;
+                // if(gl_FragColor.r > 0.5)
+                //   gl_FragColor.rgb *= 10.;
+                // else
+                //   gl_FragColor.rgb /= 10.;
+                gl_FragColor.a = gl_FragColor.r;
+                
+              ${THREE.ShaderChunk.logdepthbuf_fragment}
+              }
+          `,
+          side: THREE.DoubleSide,
+          transparent: true,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending,
+
+          // clipping: false,
+          // fog: false,
+          // lights: false,
+      });
+      
+    
+    useFrame(({ timestamp }) => {
+      if(waterfallmesh && waterfall === null){
+        waterfall = waterfallmesh.scene.clone();
+        waterfall.position.y=50;
+        waterfall.children[0].material = material;
+        app.add(waterfall);
+      }
+      if(waterfall)
+        waterfall.children[0].material.uniforms.uTime.value = timestamp / 1000;
+        
+      app.updateMatrixWorld();
+    });
+
+  }
+  //####################################################### load waterfall glb ####################################################
+  {
+    
+    let waterfall = null;
+    
+        const material= new THREE.ShaderMaterial({
+          uniforms: {
+              uTime: {
+                  value: 0,
+              },
+              opacity: {
+                  value: 0,
+              },
+              avatarPos:{
+                  value: new THREE.Vector3(0,0,0)
+              },
+              iResolution: { value: new THREE.Vector3() },
+              voronoiNoiseTexture:{
+                  value:voronoiNoiseTexture
+              },
+              simpleNoiseTexture:{
+                  value:simpleNoiseTexture
+              },
+              oneMinusTexture:{
+                  value:oneMinusTexture
+              },
+              maskTexture:{
+                  value:maskTexture
+              }
+          },
+          vertexShader: `\
+              
+              ${THREE.ShaderChunk.common}
+              ${THREE.ShaderChunk.logdepthbuf_pars_vertex}
+          
+          
+              uniform float uTime;
+      
+              varying vec2 vUv;
+              varying vec3 vPos;
+
+          
+              void main() {
+              vUv=uv;
+              vPos=position;
+              vec4 modelPosition = modelMatrix * vec4(position, 1.0);
+              vec4 viewPosition = viewMatrix * modelPosition;
+              vec4 projectionPosition = projectionMatrix * viewPosition;
+      
+              gl_Position = projectionPosition;
+              ${THREE.ShaderChunk.logdepthbuf_vertex}
+              }
+          `,
+          fragmentShader: `\
+              ${THREE.ShaderChunk.logdepthbuf_pars_fragment}
+              uniform float uTime;
+              uniform float opacity;
+              uniform vec3 iResolution;
+              uniform vec3 avatarPos;
+              varying vec2 vUv;
+              varying vec3 vPos;
+
+              
+              uniform sampler2D simpleNoiseTexture;
+              uniform sampler2D oneMinusTexture;
+              uniform sampler2D maskTexture;
+              
+              
+              void main() {
+                
+                vec4 simpleNoise = texture2D(
+                                  simpleNoiseTexture,
+                                  vUv
+                );
+                vec4 oneMinus = texture2D(
+                                  oneMinusTexture,
+                                  vUv
+                );
+                vec4 mask = texture2D(
+                                  maskTexture,
+                                  vUv
+                );
+                
+                
+                
+                // gl_FragColor = vec4(0.166, 0.819, 0.920, 1.0) + oneMinus * oneMinus *oneMinus*oneMinus*oneMinus*oneMinus * simpleNoise;
+                gl_FragColor = vec4(0.0388, 0.613, 0.970, 1.0) + oneMinus * oneMinus *oneMinus*oneMinus*oneMinus*oneMinus * simpleNoise;
+                
+                gl_FragColor*= mask * mask;
+                
+              ${THREE.ShaderChunk.logdepthbuf_fragment}
+              }
+          `,
+          side: THREE.DoubleSide,
+          transparent: true,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending,
+
+          // clipping: false,
+          // fog: false,
+          // lights: false,
+      });
+      
+    
+    useFrame(({ timestamp }) => {
+      if(waterfallmesh && waterfall === null){
+        waterfall = waterfallmesh.scene.clone();
+        waterfall.position.y=50;
+        waterfall.children[0].material = material;
+        app.add(waterfall);
+      }
+      if(waterfall)
+        waterfall.children[0].material.uniforms.uTime.value = timestamp / 1000;
+        
+      app.updateMatrixWorld();
+    });
 
   }
   //####################################################### load campfire glb ####################################################
   {
     
     let campfire;
-    let physicsIds = [];
     (async () => {
         const u = `${baseUrl}/assets/campfire.glb`;
         campfire = await new Promise((accept, reject) => {
@@ -53,8 +434,8 @@ export default () => {
         });
         campfire.scene.position.set(-75.1,101,40.5);
         campfire.scene.scale.set(0.45,0.45,0.45);
-        const physicsId = physics.addGeometry(campfire.scene);
-        physicsIds.push(physicsId);
+        physics.addGeometry(campfire.scene);
+        
         
         app.add(campfire.scene);
         app.updateMatrixWorld();
@@ -764,7 +1145,7 @@ export default () => {
 
   //####################################################### sea ############################################################
   {
-    const geometry = new THREE.PlaneGeometry( 25, 25 );
+    const geometry = new THREE.PlaneGeometry( 60, 60 );
     
     const vertexShader = `
       ${THREE.ShaderChunk.common}
@@ -793,7 +1174,7 @@ export default () => {
       varying vec2 vUv;
       varying vec3 vPos;
       #define TAU 6.28318530718
-      #define MAX_ITER 2
+      
       vec2 ToPolar(vec2 v)
       {
           return vec2(atan(v.y, v.x), length(v));
@@ -939,7 +1320,7 @@ export default () => {
         uniforms,
         transparent: true,
         side: THREE.DoubleSide,
-        //depthWrite:false,
+        depthWrite:false,
         blending:THREE.AdditiveBlending
 
 
@@ -950,440 +1331,969 @@ export default () => {
     plane.rotation.x=Math.PI/2;
 
     app.add( plane );
-    plane.position.set(110.7, 0, -56.5);
+    plane.position.set(123.7, 0, -54.5);
     app.updateMatrixWorld();
 
     useFrame(({timestamp}) => {
-      uniforms.iTime.value = timestamp /1000;
+      uniforms.iTime.value = timestamp /500;
       uniforms.iResolution.value.set(window.innerWidth, window.innerHeight, 1);
       
     
     });
   }
-
-  //####################################################### waterfall #######################################################
+  //###################################################################### splash ######################################################################
   {
-    const cylinder = new THREE.CylinderGeometry(3.5, 3.5, 75, 32, 32,true);
+    const particleCount = 100;
+    
+    let matrix = new THREE.Matrix4();
+    let dummy = new THREE.Object3D();
+    let info = {
+        velocity: [particleCount]
+    }
+    let acc = new THREE.Vector3(0, -0.02, 0);
 
-    const vertexShader = `
-      ${THREE.ShaderChunk.common}
-      ${THREE.ShaderChunk.logdepthbuf_pars_vertex}
-      varying vec2 vUv;
-      void main() {
-        vUv = uv;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
-        ${THREE.ShaderChunk.logdepthbuf_vertex}
-      }
-    `;
-    const fragmentShader = `
-      ${THREE.ShaderChunk.logdepthbuf_pars_fragment}
-      #include <common>
+    //##################################################### get geometry #####################################################
+    //const identityQuaternion = new THREE.Quaternion();
+    const _getSplashGeometry = geometry => {
+        //console.log(geometry)
+        const geometry2 = new THREE.BufferGeometry();
+        ['position', 'normal', 'uv'].forEach(k => {
+          geometry2.setAttribute(k, geometry.attributes[k]);
+        });
+        geometry2.setIndex(geometry.index);
+        
+        const positions = new Float32Array(particleCount * 3);
+        const positionsAttribute = new THREE.InstancedBufferAttribute(positions, 3);
+        geometry2.setAttribute('positions', positionsAttribute);
 
-      uniform vec3 iResolution;
-      uniform float iTime;
+        const color = new Float32Array(particleCount * 3);
+        const colorsAttribute = new THREE.InstancedBufferAttribute(color, 3);
+        geometry2.setAttribute('color', colorsAttribute);
 
-      varying vec2 vUv;
+        //const quaternions = new Float32Array(particleCount * 4);
+        // for (let i = 0; i < particleCount; i++) {
+        //   identityQuaternion.toArray(quaternions, i * 4);
+        // }
+        // const quaternionsAttribute = new THREE.InstancedBufferAttribute(quaternions, 4);
+        // geometry2.setAttribute('quaternions', quaternionsAttribute);
 
-      const vec3 white = vec3(0xd1, 0xee, 0xf5) / float(0xff);
-      const vec3 blue = vec3(0x01, 0x8e, 0xc6) / float(0xff);
+        // const startTimes = new Float32Array(particleCount);
+        // const startTimesAttribute = new THREE.InstancedBufferAttribute(startTimes, 1);
+        // geometry2.setAttribute('startTimes', startTimesAttribute);
 
- 
-      vec2 hash2( vec2  p ) { p = vec2( dot(p,vec2(127.1,311.7)), dot(p,vec2(269.5,183.3)) ); return fract(sin(p)*43758.5453); }
+        const opacityAttribute = new THREE.InstancedBufferAttribute(new Float32Array(particleCount), 1);
+        opacityAttribute.setUsage(THREE.DynamicDrawUsage);
+        geometry2.setAttribute('opacity', opacityAttribute);
 
-      vec2 voronoi( in vec2 x, float w , float time)
-      {
-          vec2 n = floor( x );
-          vec2 f = fract( x );
+        const brokenAttribute = new THREE.InstancedBufferAttribute(new Float32Array(particleCount), 1);
+        brokenAttribute.setUsage(THREE.DynamicDrawUsage);
+        geometry2.setAttribute('broken', brokenAttribute);
 
-          vec2 m = vec2(8.0, 0.0);
-          for( int j=-1; j<=1; j++ )
-            for( int i=-1; i<=1; i++ )
-            {
-                vec2 g = vec2( float(i),float(j) );
-                vec2 o = hash2( n + g );
-                o = 0.5 + 0.5*sin( time + 6.2831*o );
-                float d = length(g - f + o);
-                float h = smoothstep( 0.0, 1.0, 0.5 + 0.5*(m.x-d)/w );
-                m.x = mix( m.x,     d, h ) - h*(1.0-h)*w/(1.0+3.0*w); // distance
-                m.y = mix( m.y, 0.75, h ) - h*(1.0-h)*w/(1.0+3.0*w);
-            }
-       
-        return m;
-      }
+        const scales = new Float32Array(particleCount);
+        const scaleAttribute = new THREE.InstancedBufferAttribute(scales, 1);
+        geometry2.setAttribute('scales', scaleAttribute);
 
-      vec4 get_colorCylinder(vec2 p) {
-        float d = 0.;
-        float time = iTime;
-        p.y += time * 0.51;
-        p.x = abs(p.x);
-        p *= 5.;
-        vec2 td = voronoi(p * vec2(2.5, 1.185), 0.51, time * .1);
-        p.y += time * 0.51;
-        vec2 td2 = voronoi(p * vec2(2.5, 1.185), 0.51, (time)*.1);
-        td *= td2;
-        d = max((1. - smoothstep(0.476, 0.476 + 0.005, td.y)),
-                (1. - smoothstep(0.685, 0.685 + 0.005, td2.y)));
-
-        return vec4(mix(blue, white, d), 1.);
-      }
-
-     
-
-      void mainImage(out vec4 fragColor, in vec2 fragCoord) {
-       
-     
-        vec2 uv = vUv ;
-     
-        //uv.y *= iResolution.y / iResolution.x;
-       
-        fragColor = get_colorCylinder(vUv);
-      }
-
-
-      void main() {
-        mainImage(gl_FragColor, vUv * iResolution.xy);
-        gl_FragColor.r+=0.1;
-        gl_FragColor.g+=0.2;
-        gl_FragColor.b+=0.1;
-        gl_FragColor.a-=0.2;
-        ${THREE.ShaderChunk.logdepthbuf_fragment}
-      }
-    `;
-
-    const uniforms = {
-      iTime: { value: 0 },
-      iResolution: { value: new THREE.Vector3() }
+        const random = new Float32Array(particleCount);
+        const randomAttribute = new THREE.InstancedBufferAttribute(random, 1);
+        geometry2.setAttribute('random', scaleAttribute);
+    
+        return geometry2;
     };
-    const material = new THREE.ShaderMaterial({
-      vertexShader,
-      fragmentShader,
-      uniforms,
-      transparent: true
 
-    });
-    material.side = THREE.DoubleSide;
-
-    //const material = new THREE.MeshBasicMaterial( {color: 0x00ff00} );
-    const waterfall = new THREE.Mesh(cylinder, material);
-    //waterfall.position.y=100;
-    waterfall.scale.x /= 1.1;
-    waterfall.position.set(110.7, 38, -56.5);
-
-    //waterfall.rotation.y=Math.PI/2;
-    app.add(waterfall);
-
-    app.updateMatrixWorld();
-    //uniforms.iResolution.value.set(window.innerWidth/10000, window.innerHeight/10000, 1);
-    //uniforms.iResolution.value.set(1,1, 1);
-    useFrame(({ timestamp, timeDiff }) => {
-      uniforms.iTime.value = timestamp / 1000;
-      uniforms.iResolution.value.set(window.innerWidth / 10000, window.innerHeight / 10000, 1);
-
-    });
-
-  }
-  //############################################# splash  #################################################
-    const cloud = textureLoader.load(`${baseUrl}/textures/cloud8.png`)
-    const splashtexture = textureLoader.load(`${baseUrl}/textures/splash.png`)
-    {
-        const particlesGeometry = new THREE.BufferGeometry()
-        const count = 250;
-
-        const positions = new Float32Array(count * 3)
-
-        for(let i = 0; i < count; i++) 
-        {
-            positions[i * 3 + 0] = (Math.cos(i)) * 5;
-            positions[i * 3 + 1] = (Math.random()-0.5)*4;
-            positions[i * 3 + 2] = (Math.sin(i)) * 5;
-
-        }
-        particlesGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
-
-        const scaleArray = new Float32Array(count)
-
-        for(let i = 0; i < count; i++)
-        {
-            scaleArray[i] = Math.random()
-        }
-        particlesGeometry.setAttribute('aScale', new THREE.BufferAttribute(scaleArray, 1))
-
-        const rotation = new Float32Array(count)
-
-        for(let i = 0; i < count; i++)
-        {
-            rotation[i] = Math.random()*90;
-        }
-        particlesGeometry.setAttribute('aRotation', new THREE.BufferAttribute(rotation, 1))
-
-        const material = new THREE.PointsMaterial({
-            size: 1,
-            sizeAttenuation: true,
-            transparent:true,
-            
-        })
-        
-        material.transparent= true; 
-        //material.map= texture; 
-        material.side= THREE.DoubleSide; 
-        material.depthWrite= false;
-        
-
-        const particlesMaterial = new THREE.ShaderMaterial({
-            uniforms: {
-                uColor: {
-                    value: 0,
-                },
-                uTime: {
-                    value: 0,
-                },
-                uPixelRatio: { 
-                    value: Math.min(window.devicePixelRatio, 2) 
-                },
-                uSize: { 
-                    value: 70 
-                },
-                uTexture: { 
-                    value: cloud 
-                },
-                uAvatarPos:{
-                    value: new THREE.Vector3(0,0,0)
-                },
-                uAvatarDirection:{
-                    value: new THREE.Vector3(0,0,0)
-                }
-
+    //##################################################### material #####################################################
+    const splashMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+            uTime: {
+                value: 0,
             },
-            vertexShader: `\
-                
-                ${THREE.ShaderChunk.common}
-                ${THREE.ShaderChunk.logdepthbuf_pars_vertex}
-                
+            perlinnoise:{
+                value: splashTexture1
+            },
+            cameraBillboardQuaternion: {
+                value: new THREE.Quaternion(),
+            },
+        },
+        vertexShader: `\
             
-                uniform float uTime;
-                uniform float uPixelRatio;
-                uniform float uSize;
-                uniform vec3 uAvatarPos;
-                uniform vec3 uAvatarDirection;
-                attribute float aScale;
-                attribute float aRotation;
-                
-
-                varying vec2 vUv;
-                varying float vRotation;
-                varying vec3 vPos;
-                
-                void main() { 
-                gl_PointSize = 2000.;
-                vUv=uv;
-                vRotation=aRotation;
-
-
-                vec3 pos=position;
-                // if(gl_VertexID > 1){  
-                //     pos.x += sin( float(gl_InstanceID) + (uTime * 0.8) ) * 0.2;
-                // }
-                vec4 modelPosition = modelMatrix * vec4(pos, 1.0);
-                float totalY = 5. - 0.5;
-                modelPosition.y = 5. - mod(5. - (modelPosition.y + uTime * 50.*aScale), totalY);
-                
-                
-                vPos=modelPosition.xyz;
-                gl_PointSize*=modelPosition.y;
-                vec4 viewPosition = viewMatrix * modelPosition;
-                vec4 projectionPosition = projectionMatrix * viewPosition;
-                gl_Position = projectionPosition;
-
-                vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
-                bool isPerspective = ( projectionMatrix[ 2 ][ 3 ] == - 1.0 );
-                    if ( isPerspective ) gl_PointSize *= (1.0 / - viewPosition.z);
-
+            ${THREE.ShaderChunk.common}
+            ${THREE.ShaderChunk.logdepthbuf_pars_vertex}
         
+        
+            uniform float uTime;
+            uniform vec4 cameraBillboardQuaternion;
+    
+            varying vec2 vUv;
+            varying vec3 vPos;
+            varying vec3 vColor;
+            varying float vBroken;
+            varying float vOpacity;
+            varying float vRandom;
+            attribute vec3 positions;
+            attribute vec3 color;
+            attribute float scales;
+            attribute vec4 quaternions;
+            attribute float broken;
+            attribute float opacity;
+            attribute float random;
+            vec3 qtransform(vec3 v, vec4 q) { 
+              return v + 2.0*cross(cross(v, q.xyz ) + q.w*v, q.xyz);
+            }
+            vec3 rotateVecQuat(vec3 position, vec4 q) {
+                vec3 v = position.xyz;
+                return v + 2.0 * cross(q.xyz, cross(q.xyz, v) + q.w * v);
+            }
+        
+            void main() {
+              vBroken=broken;
+              vOpacity=opacity;
+              vColor = color;
+              vRandom = random;
+              vUv=uv;
+              vPos=position;
+              vec3 pos = position;
+              pos = rotateVecQuat(pos, cameraBillboardQuaternion);
+              pos*=scales;
+              pos+=positions;
+              //pos = qtransform(pos, quaternions);
+              //pos.y=cos(uTime/100.);
+              vec4 modelPosition = modelMatrix * vec4(pos, 1.0);
+              vec4 viewPosition = viewMatrix * modelPosition;
+              vec4 projectionPosition = projectionMatrix * viewPosition;
+      
+              gl_Position = projectionPosition;
+              ${THREE.ShaderChunk.logdepthbuf_vertex}
+            }
+        `,
+        fragmentShader: `\
+            ${THREE.ShaderChunk.logdepthbuf_pars_fragment}
+            uniform float uTime;
+            varying float vBroken;
+            varying float vOpacity;
+            varying vec3 vColor;
+            varying float vRandom;
+            varying vec2 vUv;
+            varying vec3 vPos;
+            uniform sampler2D perlinnoise;
+            
+            #define PI 3.1415926
+            
+            
+            
+            
+            void main() {
                 
-                
-                
-                ${THREE.ShaderChunk.logdepthbuf_vertex}
-                }
-            `,
-            fragmentShader: `\
-                
-                
-                ${THREE.ShaderChunk.logdepthbuf_pars_fragment}
-                varying vec2 vUv;
-                varying float vRotation;
-                varying vec3 vPos;
-                uniform sampler2D uTexture;
-                uniform float uTime;
-                
-                
-                void main() {
-                float vr=vRotation*(uTime*.5);
                 float mid = 0.5;
-                vec2 rotated = vec2(cos(vr) * (gl_PointCoord.x - mid) - sin(vr) * (gl_PointCoord.y - mid) + mid,
-                            cos(vr) * (gl_PointCoord.y - mid) + sin(vr) * (gl_PointCoord.x - mid) + mid);
+                vec2 rotated = vec2(cos(vRandom*PI) * (vUv.x - mid) - sin(vRandom*PI) * (vUv.y - mid) + mid,
+                            cos(vRandom*PI) * (vUv.y - mid) + sin(vRandom*PI) * (vUv.x - mid) + mid);
                 
                 // vec4 rotatedTexture = texture2D( texture,  rotated);
-                // gl_FragColor = vec4( color * vColor, 1.0 ) * rotatedTexture;
-                
-                vec4 textureColor = texture2D(uTexture, rotated );
-                textureColor.xyz/=2.0;
-                textureColor.y+=0.3;
-                if( textureColor.a < 0.8  )
-                {
-                    discard;    
-                }       
-                
-                gl_FragColor = textureColor;
-                gl_FragColor.g-=0.2;
-                
-                gl_FragColor.a=(5.- vPos.y)/5.;
-                gl_FragColor.a*=0.01;
-                // float distanceToCenter = distance(gl_PointCoord, vec2(0.5));
-                // float strength = 0.05 / distanceToCenter - 0.1;
-                // gl_FragColor = vec4(0.260, 0.918, 0.115, strength);
-                ${THREE.ShaderChunk.logdepthbuf_fragment}
+                vec4 ripple = texture2D(
+                    perlinnoise,
+                    rotated
+                );
+
+
+                gl_FragColor = ripple;
+                if(gl_FragColor.r<vBroken){
+                    discard;
                 }
-            `,
-            side: THREE.DoubleSide,
-            transparent: true,
-            depthWrite: false,
-            blending: THREE.AdditiveBlending,
-            
-        });
-        
-
-        const fallingLeave = new THREE.Points(particlesGeometry, particlesMaterial);
-        fallingLeave.position.x=111;
-        fallingLeave.position.y=0;
-        fallingLeave.position.z=-56.5;
-        
-        app.add(fallingLeave);
-
-        // const group = new THREE.Group();
-        // group.add(fallingLeave);
-        // app.add(group);
-        app.updateMatrixWorld();
-        let userFollow=0;
-        let dum = new THREE.Vector3();
-        useFrame(({timestamp}) => {
-            
-            localPlayer.getWorldDirection(dum)
-            dum = dum.normalize();
-        
-            fallingLeave.material.uniforms.uTime.value = (timestamp)/50000;
-            fallingLeave.material.uniforms.uAvatarPos.value=localPlayer.position;
-            fallingLeave.material.uniforms.uAvatarDirection.value.x=localPlayer.position.x+5*dum.x;
-            fallingLeave.material.uniforms.uAvatarDirection.value.z=localPlayer.position.z+5*dum.z;
-            //if(userFollow%1000===0){
-                // fallingLeave.position.x=localPlayer.position.x;
-                // fallingLeave.position.z=localPlayer.position.z;
-            //}
-            // group.position.x=localPlayer.position.x;
-            // group.position.y=localPlayer.position.y;
-            // group.position.z=localPlayer.position.z;
-            // group.rotation.copy(localPlayer.rotation);
-
-            // group.updateMatrixWorld();
-            userFollow++;
-            
-        
-        });
-      }
-      //############################################# splash particle #################################################
-      {
-
-
-        const particleCount = 80;
-        let info = {
-            velocity: [particleCount],
-            rotate: [particleCount]
-        }
-        const acc = new THREE.Vector3(0, -0.002, 0);
-    
-        //######## object #########
-        let mesh = null;
-        let dummy = new THREE.Object3D();
-    
-    
-        function addInstancedMesh() {
-            mesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({map:splashtexture, color: 0xF7D994, transparent:true, opacity:1, depthWrite:false, blending:THREE.AdditiveBlending}), particleCount);
-            
-            app.add(mesh);
-            setInstancedMeshPositions(mesh);
-        }
-        function setInstancedMeshPositions(mesh1) {
-            for (let i = 0; i < mesh1.count; i++) {
-                info.velocity[i] = (new THREE.Vector3(
-                    (Math.random() - 0.5)*3.,
-                    Math.random() * 1.,
-                    (Math.random() - 0.5)*3.));
-                info.velocity[i].divideScalar(20);
-                info.rotate[i] = new THREE.Vector3(
-                    Math.random() - 0.5,
-                    Math.random() - 0.5,
-                    Math.random() - 0.5);
-                dummy.position.set(110.7,0,-56.5);
-                dummy.updateMatrix();
-                mesh1.setMatrixAt(i, dummy.matrix);
+                
+                gl_FragColor.rgb *= vColor; 
+                gl_FragColor.a*=vOpacity;
+            ${THREE.ShaderChunk.logdepthbuf_fragment}
             }
-            mesh1.instanceMatrix.needsUpdate = true;
-        }
-        addInstancedMesh();
-    
-        let matrix = new THREE.Matrix4();
-        let position = new THREE.Vector3();
-    
-        useFrame(({timestamp}) => {
+        `,
+        side: THREE.DoubleSide,
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
         
-          if (mesh) {
+    });
+    
+   
+
+    
+
+    //##################################################### object #####################################################
+    let mesh=null;
+    const addInstancedMesh=()=>{
+        const geometry2 = new THREE.PlaneGeometry( 10, 10 );
+        const geometry =_getSplashGeometry(geometry2)
+        mesh = new THREE.InstancedMesh(
+            geometry,
+            splashMaterial,
+            particleCount
+        );
+        
+        app.add(mesh);
+        
+        for (let i = 0; i < particleCount; i++) {
+            
+            info.velocity[i] = new THREE.Vector3();
+            
+        }
+        
+        
+    }
+    addInstancedMesh();
+    
+
+    let timer = 0;
+    useFrame(({timestamp}) => {
+        
+   
+       
+        
+        if (mesh) {
+            const opacityAttribute = mesh.geometry.getAttribute('opacity');
+            const brokenAttribute = mesh.geometry.getAttribute('broken');
+            // const startTimesAttribute = mesh.geometry.getAttribute('startTimes');
+            const positionsAttribute = mesh.geometry.getAttribute('positions');
+            const scalesAttribute = mesh.geometry.getAttribute('scales');
+            //const quaternionsAttribute = mesh.geometry.getAttribute('quaternions');
+            const randomAttribute = mesh.geometry.getAttribute('random');
+            const colorAttribute = mesh.geometry.getAttribute('color');
             for (let i = 0; i < particleCount; i++) {
                 mesh.getMatrixAt(i, matrix);
-    
-    
-                position.setFromMatrixPosition(matrix); // extract position form transformationmatrix
-    
-               
                 matrix.decompose(dummy.position, dummy.quaternion, dummy.scale);
                 
-                // dummy.rotation.x += timestamp * (i % 2 == 0 ? -1 : 1);
-                // dummy.scale.y = 0.1;
-    
-                if (dummy.position.y < 0 || dummy.position.y > 10) {
-                    let rand=Math.random();
-                    dummy.scale.x = rand;
-                    dummy.scale.y = rand;
-                    dummy.scale.z = rand;
-                    dummy.position.x = 110.7;
-                    dummy.position.y = 0;
-                    dummy.position.z = -56.5;
-                    info.velocity[i] = (new THREE.Vector3(
-                        (Math.random() - 0.5)*5.,
-                        Math.random() *4,
-                        (Math.random() - 0.5)*5.)
-                    );
+                if(positionsAttribute.getY(i)<-0.5){
+                    info.velocity[i].x=(Math.random()-0.5)*10;
+                    info.velocity[i].y=10+(Math.random()-0.5)*5;
+                    info.velocity[i].z=(Math.random()-0.5)*10;
+                    
+                        
                     info.velocity[i].divideScalar(20);
+                    positionsAttribute.setXYZ(i,123.7+(Math.random()-0.5)*20, -0.5, -54.5+(Math.random()-0.5)*20);
+                    brokenAttribute.setX(i, Math.random()*0.3+0.3);
+                    opacityAttribute.setX(i, 1);
+                    scalesAttribute.setX(i, 0.7);
+                    randomAttribute.setX(i, Math.random());
+                    colorAttribute.setXYZ(i, 0.0388, 0.892, 0.970);
+
                 }
-                info.velocity[i].add(acc);
-                dummy.scale.x /=1.01;
-                dummy.scale.y /=1.01;
-                dummy.scale.z /=1.01;
-                dummy.position.add(info.velocity[i]);
 
-                dummy.rotation.copy(camera.rotation);
+                if(positionsAttribute.getY(i)>=-100){
+                    if(i % 2 === 0){
+                      randomAttribute.setX(i, randomAttribute.getX(i)+0.01);
+                    }
+                    else{
+                      randomAttribute.setX(i, randomAttribute.getX(i)-0.01);
+                    }
+                    colorAttribute.setXYZ(i,
+                                          colorAttribute.getX(i)+0.03,
+                                          colorAttribute.getY(i)+0.03,
+                                          colorAttribute.getZ(i)+0.03,
+                    );
+                    positionsAttribute.setXYZ(  i, 
+                                                positionsAttribute.getX(i)+info.velocity[i].x,
+                                                positionsAttribute.getY(i)+info.velocity[i].y,
+                                                positionsAttribute.getZ(i)+info.velocity[i].z
+                                            );
+                    //scalesAttribute.setX(i, scalesAttribute.getX(i)-0.015);
+                    opacityAttribute.setX(i, opacityAttribute.getX(i)-0.005);
+                    if(brokenAttribute.getX(i)<1.0)
+                        brokenAttribute.setX(i, brokenAttribute.getX(i)+0.008);
+                    
+                    info.velocity[i].add(acc);
+                }
                 
 
-                dummy.updateMatrix();
-                
-                mesh.setMatrixAt(i, dummy.matrix);
-                mesh.instanceMatrix.needsUpdate = true;
-    
             }
+            
+            mesh.instanceMatrix.needsUpdate = true;
+            positionsAttribute.needsUpdate = true;
+            opacityAttribute.needsUpdate = true;
+            brokenAttribute.needsUpdate = true;
+            scalesAttribute.needsUpdate = true;
+            randomAttribute.needsUpdate = true;
+            colorAttribute.needsUpdate = true;
+            //quaternionsAttribute.needsUpdate = true;
+            // startTimesAttribute.needsUpdate = true;
+            mesh.material.uniforms.uTime.value=timestamp/1000;
+            mesh.material.uniforms.cameraBillboardQuaternion.value.copy(camera.quaternion);
+            timer++;
+
+        }
+        app.updateMatrixWorld();
+
+        
+    });
+  }
+  //###################################################################### splash particle ######################################################################
+  {
+    const particleCount = 30;
     
+    let matrix = new THREE.Matrix4();
+    let dummy = new THREE.Object3D();
+    let info = {
+        velocity: [particleCount]
+    }
+    let acc = new THREE.Vector3(0, -0.02, 0);
+
+    //##################################################### get geometry #####################################################
+    //const identityQuaternion = new THREE.Quaternion();
+    const _getSplashGeometry = geometry => {
+        //console.log(geometry)
+        const geometry2 = new THREE.BufferGeometry();
+        ['position', 'normal', 'uv'].forEach(k => {
+          geometry2.setAttribute(k, geometry.attributes[k]);
+        });
+        geometry2.setIndex(geometry.index);
+        
+        const positions = new Float32Array(particleCount * 3);
+        const positionsAttribute = new THREE.InstancedBufferAttribute(positions, 3);
+        geometry2.setAttribute('positions', positionsAttribute);
+        // const quaternions = new Float32Array(particleCount * 4);
+        // for (let i = 0; i < particleCount; i++) {
+        //   identityQuaternion.toArray(quaternions, i * 4);
+        // }
+        // const quaternionsAttribute = new THREE.InstancedBufferAttribute(quaternions, 4);
+        // geometry2.setAttribute('quaternions', quaternionsAttribute);
+
+        // const startTimes = new Float32Array(particleCount);
+        // const startTimesAttribute = new THREE.InstancedBufferAttribute(startTimes, 1);
+        // geometry2.setAttribute('startTimes', startTimesAttribute);
+
+        const opacityAttribute = new THREE.InstancedBufferAttribute(new Float32Array(particleCount), 1);
+        opacityAttribute.setUsage(THREE.DynamicDrawUsage);
+        geometry2.setAttribute('opacity', opacityAttribute);
+
+        // const brokenAttribute = new THREE.InstancedBufferAttribute(new Float32Array(particleCount), 1);
+        // brokenAttribute.setUsage(THREE.DynamicDrawUsage);
+        // geometry2.setAttribute('broken', brokenAttribute);
+
+        const scales = new Float32Array(particleCount);
+        const scaleAttribute = new THREE.InstancedBufferAttribute(scales, 1);
+        geometry2.setAttribute('scales', scaleAttribute);
+
+        
     
+        return geometry2;
+    };
+
+    //##################################################### material #####################################################
+    const splashMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+            uTime: {
+                value: 0,
+            },
+            perlinnoise:{
+                value: splashTexture2
+            },
+            cameraBillboardQuaternion: {
+                value: new THREE.Quaternion(),
+            },
+        },
+        vertexShader: `\
+            
+            ${THREE.ShaderChunk.common}
+            ${THREE.ShaderChunk.logdepthbuf_pars_vertex}
+        
+        
+            uniform float uTime;
+            uniform vec4 cameraBillboardQuaternion;
+    
+            varying vec2 vUv;
+            varying vec3 vPos;
+            //varying float vBroken;
+            varying float vOpacity;
+            
+            attribute vec3 positions;
+            attribute float scales;
+            attribute vec4 quaternions;
+            //attribute float broken;
+            attribute float opacity;
+            
+            vec3 qtransform(vec3 v, vec4 q) { 
+              return v + 2.0*cross(cross(v, q.xyz ) + q.w*v, q.xyz);
+            }
+            vec3 rotateVecQuat(vec3 position, vec4 q) {
+                vec3 v = position.xyz;
+                return v + 2.0 * cross(q.xyz, cross(q.xyz, v) + q.w * v);
+            }
+        
+            void main() {
+              
+              vOpacity=opacity;
+              
+              vUv=uv;
+              vPos=position;
+              vec3 pos = position;
+              pos = rotateVecQuat(pos, cameraBillboardQuaternion);
+              pos*=scales;
+              pos+=positions;
+              vec4 modelPosition = modelMatrix * vec4(pos, 1.0);
+              vec4 viewPosition = viewMatrix * modelPosition;
+              vec4 projectionPosition = projectionMatrix * viewPosition;
+      
+              gl_Position = projectionPosition;
+              ${THREE.ShaderChunk.logdepthbuf_vertex}
+            }
+        `,
+        fragmentShader: `\
+            ${THREE.ShaderChunk.logdepthbuf_pars_fragment}
+            uniform float uTime;
+            //varying float vBroken;
+            varying float vOpacity;
+            
+            varying vec2 vUv;
+            varying vec3 vPos;
+            uniform sampler2D perlinnoise;
+            
+            #define PI 3.1415926
+            
+            
+            
+            
+            void main() {
+                
+                
+                vec4 ripple = texture2D(
+                    perlinnoise,
+                    vUv
+                );
+
+
+                gl_FragColor = ripple;
+                if(gl_FragColor.a<0.2){
+                    discard;
+                }
+                
+
+                gl_FragColor.a*=vOpacity;
+            ${THREE.ShaderChunk.logdepthbuf_fragment}
+            }
+        `,
+        side: THREE.DoubleSide,
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        
+    });
+    
+   
+
+    
+
+    //##################################################### object #####################################################
+    let mesh=null;
+    const addInstancedMesh=()=>{
+        const geometry2 = new THREE.PlaneGeometry( 1.5, 1.5 );
+        const geometry =_getSplashGeometry(geometry2)
+        mesh = new THREE.InstancedMesh(
+            geometry,
+            splashMaterial,
+            particleCount
+        );
+        
+        app.add(mesh);
+        
+        for (let i = 0; i < particleCount; i++) {
+            
+            info.velocity[i] = new THREE.Vector3();
+            
         }
         
-        });
-      }
+        
+    }
+    addInstancedMesh();
+    
+
+    let timer = 0;
+    useFrame(({timestamp}) => {
+        
+   
+       
+        
+        if (mesh) {
+            const opacityAttribute = mesh.geometry.getAttribute('opacity');
+            //const brokenAttribute = mesh.geometry.getAttribute('broken');
+            // const startTimesAttribute = mesh.geometry.getAttribute('startTimes');
+            const positionsAttribute = mesh.geometry.getAttribute('positions');
+            const scalesAttribute = mesh.geometry.getAttribute('scales');
+            //const quaternionsAttribute = mesh.geometry.getAttribute('quaternions');
+            
+            for (let i = 0; i < particleCount; i++) {
+                mesh.getMatrixAt(i, matrix);
+                matrix.decompose(dummy.position, dummy.quaternion, dummy.scale);
+                
+                if(positionsAttribute.getY(i)<0){
+                    info.velocity[i].x=(Math.random()-0.5)*15;
+                    info.velocity[i].y=10+(Math.random()-0.5)*10;
+                    info.velocity[i].z=(Math.random()-0.5)*15;
+                    
+                        
+                    info.velocity[i].divideScalar(20);
+                    positionsAttribute.setXYZ(i,123.7+(Math.random()-0.5)*20, 0, -54.5+(Math.random()-0.5)*20);
+                    //brokenAttribute.setX(i, Math.random()*0.3+0.3);
+                    opacityAttribute.setX(i, 1);
+                    scalesAttribute.setX(i, 0.5 + Math.random()*0.5);
+                    
+
+                }
+
+                if(positionsAttribute.getY(i)>=-100){
+                    
+                      
+                    positionsAttribute.setXYZ(  i, 
+                                                positionsAttribute.getX(i)+info.velocity[i].x,
+                                                positionsAttribute.getY(i)+info.velocity[i].y,
+                                                positionsAttribute.getZ(i)+info.velocity[i].z
+                                            );
+                    scalesAttribute.setX(i, scalesAttribute.getX(i)-0.01);
+                    opacityAttribute.setX(i, opacityAttribute.getX(i)-0.005);
+                    // if(brokenAttribute.getX(i)<1.0)
+                    //     brokenAttribute.setX(i, brokenAttribute.getX(i)+0.008);
+                    
+                    info.velocity[i].add(acc);
+                }
+                
+
+            }
+            
+            mesh.instanceMatrix.needsUpdate = true;
+            positionsAttribute.needsUpdate = true;
+            opacityAttribute.needsUpdate = true;
+            //brokenAttribute.needsUpdate = true;
+            scalesAttribute.needsUpdate = true;
+            
+            //quaternionsAttribute.needsUpdate = true;
+            // startTimesAttribute.needsUpdate = true;
+            mesh.material.uniforms.uTime.value=timestamp/1000;
+            mesh.material.uniforms.cameraBillboardQuaternion.value.copy(camera.quaternion);
+            timer++;
+
+        }
+        app.updateMatrixWorld();
+
+        
+    });
+  }
+
+
+  //####################################################### waterfall #######################################################
+  // {
+  //   const cylinder = new THREE.CylinderGeometry(3.5, 3.5, 75, 32, 32,true);
+
+  //   const vertexShader = `
+  //     ${THREE.ShaderChunk.common}
+  //     ${THREE.ShaderChunk.logdepthbuf_pars_vertex}
+  //     varying vec2 vUv;
+  //     void main() {
+  //       vUv = uv;
+  //       gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+  //       ${THREE.ShaderChunk.logdepthbuf_vertex}
+  //     }
+  //   `;
+  //   const fragmentShader = `
+  //     ${THREE.ShaderChunk.logdepthbuf_pars_fragment}
+  //     #include <common>
+
+  //     uniform vec3 iResolution;
+  //     uniform float iTime;
+
+  //     varying vec2 vUv;
+
+  //     const vec3 white = vec3(0xd1, 0xee, 0xf5) / float(0xff);
+  //     const vec3 blue = vec3(0x01, 0x8e, 0xc6) / float(0xff);
+
+ 
+  //     vec2 hash2( vec2  p ) { p = vec2( dot(p,vec2(127.1,311.7)), dot(p,vec2(269.5,183.3)) ); return fract(sin(p)*43758.5453); }
+
+  //     vec2 voronoi( in vec2 x, float w , float time)
+  //     {
+  //         vec2 n = floor( x );
+  //         vec2 f = fract( x );
+
+  //         vec2 m = vec2(8.0, 0.0);
+  //         for( int j=-1; j<=1; j++ )
+  //           for( int i=-1; i<=1; i++ )
+  //           {
+  //               vec2 g = vec2( float(i),float(j) );
+  //               vec2 o = hash2( n + g );
+  //               o = 0.5 + 0.5*sin( time + 6.2831*o );
+  //               float d = length(g - f + o);
+  //               float h = smoothstep( 0.0, 1.0, 0.5 + 0.5*(m.x-d)/w );
+  //               m.x = mix( m.x,     d, h ) - h*(1.0-h)*w/(1.0+3.0*w); // distance
+  //               m.y = mix( m.y, 0.75, h ) - h*(1.0-h)*w/(1.0+3.0*w);
+  //           }
+       
+  //       return m;
+  //     }
+
+  //     vec4 get_colorCylinder(vec2 p) {
+  //       float d = 0.;
+  //       float time = iTime;
+  //       p.y += time * 0.51;
+  //       p.x = abs(p.x);
+  //       p *= 5.;
+  //       vec2 td = voronoi(p * vec2(2.5, 1.185), 0.51, time * .1);
+  //       p.y += time * 0.51;
+  //       vec2 td2 = voronoi(p * vec2(2.5, 1.185), 0.51, (time)*.1);
+  //       td *= td2;
+  //       d = max((1. - smoothstep(0.476, 0.476 + 0.005, td.y)),
+  //               (1. - smoothstep(0.685, 0.685 + 0.005, td2.y)));
+
+  //       return vec4(mix(blue, white, d), 1.);
+  //     }
+
+     
+
+  //     void mainImage(out vec4 fragColor, in vec2 fragCoord) {
+       
+     
+  //       vec2 uv = vUv ;
+     
+  //       //uv.y *= iResolution.y / iResolution.x;
+       
+  //       fragColor = get_colorCylinder(vUv);
+  //     }
+
+
+  //     void main() {
+  //       mainImage(gl_FragColor, vUv * iResolution.xy);
+  //       gl_FragColor.r+=0.1;
+  //       gl_FragColor.g+=0.2;
+  //       gl_FragColor.b+=0.1;
+  //       gl_FragColor.a-=0.2;
+  //       ${THREE.ShaderChunk.logdepthbuf_fragment}
+  //     }
+  //   `;
+
+  //   const uniforms = {
+  //     iTime: { value: 0 },
+  //     iResolution: { value: new THREE.Vector3() }
+  //   };
+  //   const material = new THREE.ShaderMaterial({
+  //     vertexShader,
+  //     fragmentShader,
+  //     uniforms,
+  //     transparent: true
+
+  //   });
+  //   material.side = THREE.DoubleSide;
+
+  //   //const material = new THREE.MeshBasicMaterial( {color: 0x00ff00} );
+  //   const waterfall = new THREE.Mesh(cylinder, material);
+  //   //waterfall.position.y=100;
+  //   waterfall.scale.x /= 1.1;
+  //   waterfall.position.set(110.7, 38, -56.5);
+
+  //   //waterfall.rotation.y=Math.PI/2;
+  //   app.add(waterfall);
+
+  //   app.updateMatrixWorld();
+  //   //uniforms.iResolution.value.set(window.innerWidth/10000, window.innerHeight/10000, 1);
+  //   //uniforms.iResolution.value.set(1,1, 1);
+  //   useFrame(({ timestamp, timeDiff }) => {
+  //     uniforms.iTime.value = timestamp / 1000;
+  //     uniforms.iResolution.value.set(window.innerWidth / 10000, window.innerHeight / 10000, 1);
+
+  //   });
+
+  // }
+  // //############################################# splash  #################################################
+  //   const cloud = textureLoader.load(`${baseUrl}/textures/cloud8.png`)
+  
+  //   {
+  //       const particlesGeometry = new THREE.BufferGeometry()
+  //       const count = 20;
+
+  //       const positions = new Float32Array(count * 3)
+
+  //       for(let i = 0; i < count; i++) 
+  //       {
+  //           positions[i * 3 + 0] = (Math.cos(i)) * 5;
+  //           positions[i * 3 + 1] = (Math.random()-0.5)*4;
+  //           positions[i * 3 + 2] = (Math.sin(i)) * 5;
+
+  //       }
+  //       particlesGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+
+  //       const scaleArray = new Float32Array(count)
+
+  //       for(let i = 0; i < count; i++)
+  //       {
+  //           scaleArray[i] = Math.random()
+  //       }
+  //       particlesGeometry.setAttribute('aScale', new THREE.BufferAttribute(scaleArray, 1))
+
+  //       const rotation = new Float32Array(count)
+
+  //       for(let i = 0; i < count; i++)
+  //       {
+  //           rotation[i] = Math.random()*90;
+  //       }
+  //       particlesGeometry.setAttribute('aRotation', new THREE.BufferAttribute(rotation, 1))
+
+  //       const material = new THREE.PointsMaterial({
+  //           size: 1,
+  //           sizeAttenuation: true,
+  //           transparent:true,
+            
+  //       })
+        
+  //       material.transparent= true; 
+  //       //material.map= texture; 
+  //       material.side= THREE.DoubleSide; 
+  //       material.depthWrite= false;
+        
+
+  //       const particlesMaterial = new THREE.ShaderMaterial({
+  //           uniforms: {
+  //               uColor: {
+  //                   value: 0,
+  //               },
+  //               uTime: {
+  //                   value: 0,
+  //               },
+  //               uPixelRatio: { 
+  //                   value: Math.min(window.devicePixelRatio, 2) 
+  //               },
+  //               uSize: { 
+  //                   value: 70 
+  //               },
+  //               uTexture: { 
+  //                   value: cloud 
+  //               },
+  //               uAvatarPos:{
+  //                   value: new THREE.Vector3(0,0,0)
+  //               },
+  //               // uAvatarDirection:{
+  //               //     value: new THREE.Vector3(0,0,0)
+  //               // }
+
+  //           },
+  //           vertexShader: `\
+                
+  //               ${THREE.ShaderChunk.common}
+  //               ${THREE.ShaderChunk.logdepthbuf_pars_vertex}
+                
+            
+  //               uniform float uTime;
+  //               uniform float uPixelRatio;
+  //               uniform float uSize;
+  //               //uniform vec3 uAvatarPos;
+  //               // uniform vec3 uAvatarDirection;
+  //               attribute float aScale;
+  //               attribute float aRotation;
+                
+
+  //               varying vec2 vUv;
+  //               varying float vRotation;
+  //               varying vec3 vPos;
+                
+  //               void main() { 
+  //               gl_PointSize = 8000.;
+  //               vUv=uv;
+  //               vRotation=aRotation;
+
+
+  //               vec3 pos=position;
+  //               // if(gl_VertexID > 1){  
+  //               //     pos.x += sin( float(gl_InstanceID) + (uTime * 0.8) ) * 0.2;
+  //               // }
+  //               vec4 modelPosition = modelMatrix * vec4(pos, 1.0);
+  //               float totalY = 5. - 0.5;
+  //               modelPosition.y = 5. - mod(5. - (modelPosition.y + uTime * 50.*aScale), totalY);
+                
+                
+  //               vPos=modelPosition.xyz;
+  //               gl_PointSize*=modelPosition.y;
+  //               vec4 viewPosition = viewMatrix * modelPosition;
+  //               vec4 projectionPosition = projectionMatrix * viewPosition;
+  //               gl_Position = projectionPosition;
+
+  //               vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
+  //               bool isPerspective = ( projectionMatrix[ 2 ][ 3 ] == - 1.0 );
+  //                   if ( isPerspective ) gl_PointSize *= (1.0 / - viewPosition.z);
+
+        
+                
+                
+                
+  //               ${THREE.ShaderChunk.logdepthbuf_vertex}
+  //               }
+  //           `,
+  //           fragmentShader: `\
+                
+                
+  //               ${THREE.ShaderChunk.logdepthbuf_pars_fragment}
+  //               varying vec2 vUv;
+  //               varying float vRotation;
+  //               varying vec3 vPos;
+  //               uniform sampler2D uTexture;
+  //               uniform float uTime;
+                
+                
+  //               void main() {
+  //               float vr=vRotation*(uTime*.5);
+  //               float mid = 0.5;
+  //               vec2 rotated = vec2(cos(vr) * (gl_PointCoord.x - mid) - sin(vr) * (gl_PointCoord.y - mid) + mid,
+  //                           cos(vr) * (gl_PointCoord.y - mid) + sin(vr) * (gl_PointCoord.x - mid) + mid);
+                
+  //               // vec4 rotatedTexture = texture2D( texture,  rotated);
+  //               // gl_FragColor = vec4( color * vColor, 1.0 ) * rotatedTexture;
+                
+  //               vec4 textureColor = texture2D(uTexture, rotated );
+  //               textureColor.xyz/=2.0;
+  //               textureColor.y+=0.3;
+  //               if( textureColor.a < 0.8  )
+  //               {
+  //                   discard;    
+  //               }       
+                
+  //               gl_FragColor = textureColor;
+  //               gl_FragColor.g-=0.2;
+                
+  //               gl_FragColor.a=(5.- vPos.y)/5.;
+  //               gl_FragColor.a*=0.01;
+  //               // float distanceToCenter = distance(gl_PointCoord, vec2(0.5));
+  //               // float strength = 0.05 / distanceToCenter - 0.1;
+  //               // gl_FragColor = vec4(0.260, 0.918, 0.115, strength);
+  //               ${THREE.ShaderChunk.logdepthbuf_fragment}
+  //               }
+  //           `,
+  //           side: THREE.DoubleSide,
+  //           transparent: true,
+  //           depthWrite: false,
+  //           blending: THREE.AdditiveBlending,
+            
+  //       });
+        
+
+  //       const fallingLeave = new THREE.Points(particlesGeometry, particlesMaterial);
+  //       fallingLeave.position.x=123.7;
+  //       fallingLeave.position.y=0;
+  //       fallingLeave.position.z=-54.5;
+        
+  //       app.add(fallingLeave);
+
+  //       // const group = new THREE.Group();
+  //       // group.add(fallingLeave);
+  //       // app.add(group);
+  //       app.updateMatrixWorld();
+  //       // let userFollow=0;
+  //       // let dum = new THREE.Vector3();
+  //       useFrame(({timestamp}) => {
+            
+  //           // localPlayer.getWorldDirection(dum)
+  //           // dum = dum.normalize();
+        
+  //           fallingLeave.material.uniforms.uTime.value = (timestamp)/50000;
+  //           //fallingLeave.material.uniforms.uAvatarPos.value=localPlayer.position;
+  //           // fallingLeave.material.uniforms.uAvatarDirection.value.x=localPlayer.position.x+5*dum.x;
+  //           // fallingLeave.material.uniforms.uAvatarDirection.value.z=localPlayer.position.z+5*dum.z;
+  //           //if(userFollow%1000===0){
+  //               // fallingLeave.position.x=localPlayer.position.x;
+  //               // fallingLeave.position.z=localPlayer.position.z;
+  //           //}
+  //           // group.position.x=localPlayer.position.x;
+  //           // group.position.y=localPlayer.position.y;
+  //           // group.position.z=localPlayer.position.z;
+  //           // group.rotation.copy(localPlayer.rotation);
+
+  //           // group.updateMatrixWorld();
+  //           //userFollow++;
+            
+        
+  //       });
+  //     }
+  //     //############################################# splash particle #################################################
+  //     {
+
+  //       const splashtexture = textureLoader.load(`${baseUrl}/textures/splash.png`)
+  //       const particleCount = 10;
+  //       let info = {
+  //           velocity: [particleCount],
+  //           rotate: [particleCount]
+  //       }
+  //       const acc = new THREE.Vector3(0, -0.002, 0);
+    
+  //       //######## object #########
+  //       let mesh = null;
+  //       let dummy = new THREE.Object3D();
+    
+    
+  //       function addInstancedMesh() {
+  //           mesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({map:splashtexture, color: 0xF7D994, transparent:true, opacity:1, depthWrite:false, blending:THREE.AdditiveBlending}), particleCount);
+            
+  //           app.add(mesh);
+  //           setInstancedMeshPositions(mesh);
+  //       }
+  //       function setInstancedMeshPositions(mesh1) {
+  //           for (let i = 0; i < mesh1.count; i++) {
+  //               info.velocity[i] = (new THREE.Vector3(
+  //                   (Math.random() - 0.5)*3.,
+  //                   Math.random() * 1.,
+  //                   (Math.random() - 0.5)*3.));
+  //               info.velocity[i].divideScalar(20);
+  //               info.rotate[i] = new THREE.Vector3(
+  //                   Math.random() - 0.5,
+  //                   Math.random() - 0.5,
+  //                   Math.random() - 0.5);
+  //               dummy.position.set(110.7,0,-56.5);
+  //               dummy.updateMatrix();
+  //               mesh1.setMatrixAt(i, dummy.matrix);
+  //           }
+  //           mesh1.instanceMatrix.needsUpdate = true;
+  //       }
+  //       addInstancedMesh();
+    
+  //       let matrix = new THREE.Matrix4();
+  //       let position = new THREE.Vector3();
+    
+  //       useFrame(({timestamp}) => {
+        
+  //         if (mesh) {
+  //           for (let i = 0; i < particleCount; i++) {
+  //               mesh.getMatrixAt(i, matrix);
+    
+    
+  //               position.setFromMatrixPosition(matrix); // extract position form transformationmatrix
+    
+               
+  //               matrix.decompose(dummy.position, dummy.quaternion, dummy.scale);
+                
+  //               // dummy.rotation.x += timestamp * (i % 2 == 0 ? -1 : 1);
+  //               // dummy.scale.y = 0.1;
+    
+  //               if (dummy.position.y < 0 || dummy.position.y > 10) {
+  //                   let rand=Math.random();
+  //                   dummy.scale.x = rand;
+  //                   dummy.scale.y = rand;
+  //                   dummy.scale.z = rand;
+                    
+  //                   dummy.position.x = 123.7;
+  //                   dummy.position.y = 0;
+  //                   dummy.position.z = -54.5;
+  //                   info.velocity[i].x = (Math.random() - 0.5)*5;
+  //                   info.velocity[i].y = Math.random() *4;
+  //                   info.velocity[i].z = (Math.random() - 0.5)*5.;
+  //                   info.velocity[i].divideScalar(20);
+  //               }
+  //               info.velocity[i].add(acc);
+  //               dummy.scale.x /=1.01;
+  //               dummy.scale.y /=1.01;
+  //               dummy.scale.z /=1.01;
+  //               dummy.position.add(info.velocity[i]);
+
+  //               dummy.rotation.copy(camera.rotation);
+                
+
+  //               dummy.updateMatrix();
+                
+  //               mesh.setMatrixAt(i, dummy.matrix);
+  //               mesh.instanceMatrix.needsUpdate = true;
+    
+  //           }
+    
+    
+  //       }
+        
+  //       });
+  //     }
 
   //############################################# fire  #################################################
   const fireTexture = textureLoader.load(`${baseUrl}/textures/fire3.png`)
@@ -1448,12 +2358,12 @@ export default () => {
               uTexture: { 
                   value: fireTexture 
               },
-              uAvatarPos:{
-                  value: new THREE.Vector3(0,0,0)
-              },
-              uAvatarDirection:{
-                  value: new THREE.Vector3(0,0,0)
-              }
+              // uAvatarPos:{
+              //     value: new THREE.Vector3(0,0,0)
+              // },
+              // uAvatarDirection:{
+              //     value: new THREE.Vector3(0,0,0)
+              // }
 
           },
           vertexShader: `\
@@ -1466,7 +2376,7 @@ export default () => {
               uniform float uPixelRatio;
               uniform float uSize;
               uniform vec3 uAvatarPos;
-              uniform vec3 uAvatarDirection;
+              //uniform vec3 uAvatarDirection;
               attribute float aScale;
               attribute float aRotation;
               
@@ -1560,17 +2470,17 @@ export default () => {
       // group.add(fallingLeave);
       // app.add(group);
       app.updateMatrixWorld();
-      let userFollow=0;
-      let dum = new THREE.Vector3();
+      //let userFollow=0;
+      //let dum = new THREE.Vector3();
       useFrame(({timestamp}) => {
           
-          localPlayer.getWorldDirection(dum)
-          dum = dum.normalize();
+          // localPlayer.getWorldDirection(dum)
+          // dum = dum.normalize();
       
           fallingLeave.material.uniforms.uTime.value = (timestamp)/50000;
-          fallingLeave.material.uniforms.uAvatarPos.value=localPlayer.position;
-          fallingLeave.material.uniforms.uAvatarDirection.value.x=localPlayer.position.x+5*dum.x;
-          fallingLeave.material.uniforms.uAvatarDirection.value.z=localPlayer.position.z+5*dum.z;
+          //fallingLeave.material.uniforms.uAvatarPos.value=localPlayer.position;
+          // fallingLeave.material.uniforms.uAvatarDirection.value.x=localPlayer.position.x+5*dum.x;
+          // fallingLeave.material.uniforms.uAvatarDirection.value.z=localPlayer.position.z+5*dum.z;
           //if(userFollow%1000===0){
               // fallingLeave.position.x=localPlayer.position.x;
               // fallingLeave.position.z=localPlayer.position.z;
@@ -1581,7 +2491,7 @@ export default () => {
           // group.rotation.copy(localPlayer.rotation);
 
           // group.updateMatrixWorld();
-          userFollow++;
+          //userFollow++;
           
       
       });
