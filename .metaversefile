@@ -1,3 +1,5 @@
 {
+  "name": "green-hill",
+  "description": "green-hill",
   "start_url": "index.js"
 }
