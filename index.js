@@ -22,7 +22,7 @@ export default () => {
   let waterfallmesh = null;
   //####################################################### load greenhiill glb ####################################################
   {
-    
+    const physicsIds = [];
     let greenhill;
     (async () => {
         const u = `${baseUrl}/assets/greenhill4.glb`;
@@ -32,8 +32,9 @@ export default () => {
             
         });
         greenhill.scene.position.y=50;
-        physics.addGeometry(greenhill.scene);
-        
+        let physicsId;
+        physicsId = physics.addGeometry(greenhill.scene);
+        physicsIds.push(physicsId)
         
         app.add(greenhill.scene);
         app.updateMatrixWorld();
@@ -48,9 +49,29 @@ export default () => {
         });
        
     })();
+    let campfire;
+    (async () => {
+        const u = `${baseUrl}/assets/campfire.glb`;
+        campfire = await new Promise((accept, reject) => {
+            const {gltfLoader} = useLoaders();
+            gltfLoader.load(u, accept, function onprogress() {}, reject);
+            
+        });
+        campfire.scene.position.set(-75.1,101,40.5);
+        campfire.scene.scale.set(0.45,0.45,0.45);
+        let physicsId;
+        physicsId = physics.addGeometry(campfire.scene);
+        physicsIds.push(physicsId)
+        
+        app.add(campfire.scene);
+        app.updateMatrixWorld();
+    })();
+    
     useCleanup(() => {
       
-      physics.removeGeometry(greenhill.scene);
+      for (const physicsId of physicsIds) {
+        physics.removeGeometry(physicsId);
+      }
       
     });
     
@@ -422,32 +443,32 @@ export default () => {
 
   }
   //####################################################### load campfire glb ####################################################
-  {
+  // {
     
-    let campfire;
-    (async () => {
-        const u = `${baseUrl}/assets/campfire.glb`;
-        campfire = await new Promise((accept, reject) => {
-            const {gltfLoader} = useLoaders();
-            gltfLoader.load(u, accept, function onprogress() {}, reject);
+  //   let campfire;
+  //   (async () => {
+  //       const u = `${baseUrl}/assets/campfire.glb`;
+  //       campfire = await new Promise((accept, reject) => {
+  //           const {gltfLoader} = useLoaders();
+  //           gltfLoader.load(u, accept, function onprogress() {}, reject);
             
-        });
-        campfire.scene.position.set(-75.1,101,40.5);
-        campfire.scene.scale.set(0.45,0.45,0.45);
-        physics.addGeometry(campfire.scene);
+  //       });
+  //       campfire.scene.position.set(-75.1,101,40.5);
+  //       campfire.scene.scale.set(0.45,0.45,0.45);
+  //       physics.addGeometry(campfire.scene);
         
         
-        app.add(campfire.scene);
-        app.updateMatrixWorld();
-    })();
-    useCleanup(() => {
+  //       app.add(campfire.scene);
+  //       app.updateMatrixWorld();
+  //   })();
+  //   useCleanup(() => {
       
-        physics.removeGeometry(campfire.scene);
+  //       physics.removeGeometry(campfire.scene);
       
-    });
+  //   });
     
 
-  }
+  // }
 
   //####################################################### upward fireflies #######################################################
   {
