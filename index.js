@@ -441,9 +441,9 @@ export default () => {
         app.updateMatrixWorld();
     })();
     useCleanup(() => {
-      for (const physicsId of physicsIds) {
-        physics.removeGeometry(physicsId);
-      }
+      
+        physics.removeGeometry(campfire.scene);
+      
     });
     
 
